@@ -1,35 +1,60 @@
-package database; 
+package database;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 
-
+/**
+ * Conexão com o MySQL. As credenciais vêm de variáveis de ambiente, para que
+ * nenhuma senha fique gravada no código-fonte:
+ *
+ * <ul>
+ *   <li>{@code ECOMMERCE_DB_URL} (padrão: jdbc:mysql://localhost:3306/ecommerce)</li>
+ *   <li>{@code ECOMMERCE_DB_USER} (padrão: root)</li>
+ *   <li>{@code ECOMMERCE_DB_PASSWORD} (padrão: vazia)</li>
+ * </ul>
+ */
 public class ConexaoMySQL implements ConexaoBD {
 
-    private static final String NOME_BANCO = "ecommerce";
-    private static final String USUARIO = "iago";
-    private static final String SENHA = "i@go651"; 
-    private static final String URL_CONEXAO = "jdbc:mysql://localhost:3306/" + NOME_BANCO;
+    private static final String URL_PADRAO = "jdbc:mysql://localhost:3306/ecommerce";
 
-    @Override
-    public Connection obterConexao() throws SQLException {
-        try {
-            Class.forName("com.mysql.cj.jdbc.Driver");
-        } catch (ClassNotFoundException e) {
-            throw new SQLException("O driver JDBC do MySQL não foi encontrado.", e);
-        }
-        return DriverManager.getConnection(URL_CONEXAO, USUARIO, SENHA);
+    private final String url;
+    private final String usuario;
+    private final String senha;
+
+    public ConexaoMySQL() {
+        this(lerVariavel("ECOMMERCE_DB_URL", URL_PADRAO),
+             lerVariavel("ECOMMERCE_DB_USER", "root"),
+             lerVariavel("ECOMMERCE_DB_PASSWORD", ""));
+    }
+
+    public ConexaoMySQL(String url, String usuario, String senha) {
+        this.url = url;
+        this.usuario = usuario;
+        this.senha = senha;
+    }
+
+    private static String lerVariavel(String nome, String padrao) {
+        String valor = System.getenv(nome);
+        return (valor == null || valor.isBlank()) ? padrao : valor;
     }
 
     @Override
-    public void fechaConexao(Connection conexao) {
+    public Connection obterConexao() throws SQLException {
+        return DriverManager.getConnection(url, usuario, senha);
+    }
+
+    @Override
+    public void fecharConexao(Connection conexao) {
+        if (conexao == null) {
+            return;
+        }
         try {
-            if (conexao != null && !conexao.isClosed()) {
+            if (!conexao.isClosed()) {
                 conexao.close();
             }
         } catch (SQLException e) {
-            System.err.println("Erro ao tentar fechar a conexão: " + e.getMessage());
+            System.err.println("Erro ao fechar a conexão: " + e.getMessage());
         }
     }
 }
